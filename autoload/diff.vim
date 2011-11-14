@@ -9,23 +9,16 @@ set cpo&vim
 function diff#diffexpr()
   let old = readfile(v:fname_in)
   let new = readfile(v:fname_new)
-  let diff = s:Diff.new()
-  if 0
-    let [oldid, newid] = diff.makeid(old, new)
-    let diffs = diff.find_diff(oldid, newid)
-  else
-    let diffs = diff.find_diff(old, new)
-  endif
-  let out = diff.format_ed(old, new, diffs)
-  call writefile(out, v:fname_out)
+  let diff = s:DiffOnp.new(old, new)
+  call writefile(diff.format_ed(), v:fname_out)
 endfunction
 
 function diff#ed(old, new)
-  let diff = s:Diff.new()
-  let diffs = diff.find_diff(a:old, a:new)
-  return diff.format_ed(a:old, a:new, diffs)
+  let diff = s:DiffOnp.new(a:old, a:new)
+  return join(diff.format_ed(), "\n")
 endfunction
 
+" simple version
 let s:Diff = {}
 
 function s:Diff.new(...)
@@ -34,40 +27,19 @@ function s:Diff.new(...)
   return obj
 endfunction
 
-function s:Diff.__init__()
-endfunction
-
-function s:Diff.makeid(old, new)
-  let nextid = 1    " 0 for empty
-  let ids = {}
-  let old = repeat([0], len(a:old))
-  for i in range(len(old))
-    let id = a:old[i] == '' ? 0 : get(ids, a:old[i], -1)
-    if id == -1
-      let ids[a:old[i]] = nextid
-      let nextid += 1
-    endif
-    let old[i] = id
-  endfor
-  let new = repeat([0], len(a:new))
-  for i in range(len(new))
-    let id = a:new[i] == '' ? 0 : get(ids, a:new[i], -1)
-    if id == -1
-      let ids[a:new[i]] = nextid
-      let nextid += 1
-    endif
-    let new[i] = id
-  endfor
-  return [old, new]
+function s:Diff.__init__(A, B)
+  let self.A = a:A
+  let self.B = a:B
+  let self.diffs = self.find_diff()
 endfunction
 
 " @return [[oldstart, oldcount, newstart, newcount], ...]
-function s:Diff.find_diff(old, new)
+function s:Diff.find_diff()
   let diffs = []
-  let todo = [[0, len(a:old), 0, len(a:new)]]
+  let todo = [[0, len(self.A), 0, len(self.B)]]
   while !empty(todo)
     let [oldstart, oldend, newstart, newend] = remove(todo, 0)
-    let same = self.find_same(a:old, oldstart, oldend, a:new, newstart, newend)
+    let same = self.find_same(oldstart, oldend, newstart, newend)
     if empty(same)
       call add(diffs, [oldstart, oldend - oldstart, newstart, newend - newstart])
     else
@@ -105,49 +77,28 @@ function s:Diff.diffsort(a, b)
   return a:a[0] == a:b[0] ? 0 : a:a[0] > a:b[0] ? 1 : -1
 endfunction
 
-" Find longest same part.
-" @return [old-lnum, new-lnum, count] or []
-function s:Diff.find_same(old, oldstart, oldend, new, newstart, newend)
+function! s:Diff.find_same(oldstart, oldend, newstart, newend)
   let res = []
   for i in range(a:oldstart, a:oldend - 1)
-    for j in range(a:newstart, a:newend - 1)
-      if a:old[i] ==# a:new[j]
-        let k = 1
-        while i + k < a:oldend && j + k < a:newend && a:old[i + k] ==# a:new[j + k]
-          let k += 1
-        endwhile
-        if empty(res) || res[2] < k
-          let res = [i, j, k]
-        endif
-      endif
-    endfor
-  endfor
-  return res
-endfunction
-
-" fast version
-function! s:Diff.find_same(old, oldstart, oldend, new, newstart, newend)
-  let res = []
-  for i in range(a:oldstart, a:oldend - 1)
-    let j = index(a:new, a:old[i], a:newstart)
+    let j = index(self.B, self.A[i], a:newstart)
     while j != -1 && j < a:newend
       let k = 1
-      while i + k < a:oldend && j + k < a:newend && a:old[i + k] ==# a:new[j + k]
+      while i + k < a:oldend && j + k < a:newend && self.A[i + k] ==# self.B[j + k]
         let k += 1
       endwhile
       if empty(res) || res[2] < k
         let res = [i, j, k]
       endif
-      let j = index(a:new, a:old[i], j + 1)
+      let j = index(self.B, self.A[i], j + 1)
     endwhile
   endfor
   return res
 endfunction
 
-function s:Diff.format_ed(old, new, diffs)
+function s:Diff.format_ed()
   let base = 1
   let lines = []
-  for diff in a:diffs
+  for diff in self.diffs
     let [oldstart, oldcount, newstart, newcount] = diff
     if oldcount == 0
       let oldrange = printf('%d', oldstart)
@@ -166,21 +117,236 @@ function s:Diff.format_ed(old, new, diffs)
     if oldcount == 0
       call add(lines, printf('%sa%s', oldrange, newrange))
       for i in range(newcount)
-        call add(lines, printf('> %s', a:new[newstart + i]))
+        call add(lines, printf('> %s', self.B[newstart + i]))
       endfor
     elseif newcount == 0
       call add(lines, printf('%sd%s', oldrange, newrange))
       for i in range(oldcount)
-        call add(lines, printf('< %s', a:old[oldstart + i]))
+        call add(lines, printf('< %s', self.A[oldstart + i]))
       endfor
     else
       call add(lines, printf('%sc%s', oldrange, newrange))
       for i in range(oldcount)
-        call add(lines, printf('< %s', a:old[oldstart + i]))
+        call add(lines, printf('< %s', self.A[oldstart + i]))
       endfor
       call add(lines, '---')
       for i in range(newcount)
-        call add(lines, printf('> %s', a:new[newstart + i]))
+        call add(lines, printf('> %s', self.B[newstart + i]))
+      endfor
+    endif
+  endfor
+  return lines
+endfunction
+
+"---------------------------------------------------------------------
+" G.Myers, W.Miller, An O(NP) Sequence Comparison Algorith
+"---------------------------------------------------------------------
+" I referred following implementation.
+"
+" http://ido.nu/kuma/2007/10/01/diff-onp-javascript-implementation/
+"
+" Copyright (c) 2007, KUMAGAI Kentaro
+"
+"    Redistribution and use in source and binary forms, with or without
+"    modification, are permitted provided that the following conditions
+"    are met:
+"
+" 1. Redistributions of source code must retain the above copyright
+"    notice, this list of conditions and the following disclaimer.
+" 2. Redistributions in binary form must reproduce the above copyright
+"    notice, this list of conditions and the following disclaimer in the
+"    documentation and/or other materials provided with the
+"    distribution.
+" 3. Neither the name of this project nor the names of its contributors
+"    may be used to endorse or promote products derived from this
+"    software without specific prior written permission.
+"
+" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+" OF THIS SO
+"---------------------------------------------------------------------
+
+let s:DiffOnp = {}
+
+function s:DiffOnp.new(...)
+  let obj = deepcopy(self)
+  call call(obj.__init__, a:000, obj)
+  return obj
+endfunction
+
+function s:DiffOnp.__init__(A, B)
+  let self.A = a:A
+  let self.B = a:B
+  let self.M = len(self.A)
+  let self.N = len(self.B)
+  if self.M <= self.N
+    let self.reverse = 0
+  else
+    let [self.A, self.B] = [self.B, self.A]
+    let [self.M, self.N] = [self.N, self.M]
+    let self.reverse = 1
+  endif
+  let self.fp = {}
+  let self.path = {}
+  let self.diffs = self.find_diff()
+endfunction
+
+function s:DiffOnp.onp()
+  let delta = self.N - self.M
+  let p = 0
+  while 1
+    let k = -p
+    while k < delta
+      let self.fp[k] = self.snake(k)
+      let k += 1
+    endwhile
+    let k = delta + p
+    while k > delta
+      let self.fp[k] = self.snake(k)
+      let k -= 1
+    endwhile
+    let k = delta
+    let self.fp[k] = self.snake(k)
+    if self.fp[delta] == self.N
+      break
+    endif
+    let p += 1
+  endwhile
+  return self.path[delta]
+endfunction
+
+function s:DiffOnp.snake(k)
+  let k = a:k
+
+  let i = get(self.fp, k - 1, -1) + 1
+  let j = get(self.fp, k + 1, -1)
+  if i > j
+    if has_key(self.path, k - 1)
+      let self.path[k] = copy(self.path[k - 1])
+    endif
+    let v = 1
+  else
+    if has_key(self.path, k + 1)
+      let self.path[k] = copy(self.path[k + 1])
+    endif
+    let v = -1
+  endif
+  if !has_key(self.path, k)
+    let self.path[k] = []
+  endif
+  call add(self.path[k], v)
+  let y = max([i, j])
+
+  let x = y - k
+  while x < self.M && y < self.N && self.A[x] ==# self.B[y]
+    let x += 1
+    let y += 1
+    call add(self.path[k], 0)
+  endwhile
+  return y
+endfunction
+
+function s:DiffOnp.find_diff()
+  let path = self.onp()
+  let diffs = []
+  let x = 0
+  let y = 0
+  let i = 1
+  while i < len(path)
+    if path[i] == 0
+      let i += 1
+      let x += 1
+      let y += 1
+    elseif path[i] > 0
+      let oldstart = y
+      let oldcount = 0
+      let newstart = x
+      let newcount = 0
+      while i < len(path) && path[i] > 0
+        let newcount += 1
+        let i += 1
+      endwhile
+      while i < len(path) && path[i] < 0
+        let oldcount += 1
+        let i += 1
+      endwhile
+      let y += oldcount
+      let x += newcount
+      call add(diffs, [oldstart, oldcount, newstart, newcount])
+    elseif path[i] < 0
+      let oldstart = y
+      let oldcount = 0
+      let newstart = x
+      let newcount = 0
+      while i < len(path) && path[i] < 0
+        let oldcount += 1
+        let i += 1
+      endwhile
+      while i < len(path) && path[i] > 0
+        let newcount += 1
+        let i += 1
+      endwhile
+      let y += oldcount
+      let x += newcount
+      call add(diffs, [oldstart, oldcount, newstart, newcount])
+    endif
+  endwhile
+  return diffs
+endfunction
+
+function s:DiffOnp.format_ed()
+  let base = 1
+  let lines = []
+  let old = self.A
+  let new = self.B
+  if self.reverse
+    let [old, new] = [new, old]
+  endif
+  for diff in self.diffs
+    let [oldstart, oldcount, newstart, newcount] = diff
+    if self.reverse
+      let [oldstart, oldcount, newstart, newcount] = [newstart, newcount, oldstart, oldcount]
+    endif
+    if oldcount == 0
+      let oldrange = printf('%d', oldstart)
+    elseif oldcount == 1
+      let oldrange = printf('%d', oldstart + base)
+    else
+      let oldrange = printf('%d,%d', oldstart + base, oldstart + base + oldcount - 1)
+    endif
+    if newcount == 0
+      let newrange = printf('%d', newstart)
+    elseif newcount == 1
+      let newrange = printf('%d', newstart + base)
+    else
+      let newrange = printf('%d,%d', newstart + base, newstart + base + newcount - 1)
+    endif
+    if oldcount == 0
+      call add(lines, printf('%sa%s', oldrange, newrange))
+      for i in range(newcount)
+        call add(lines, printf('> %s', new[newstart + i]))
+      endfor
+    elseif newcount == 0
+      call add(lines, printf('%sd%s', oldrange, newrange))
+      for i in range(oldcount)
+        call add(lines, printf('< %s', old[oldstart + i]))
+      endfor
+    else
+      call add(lines, printf('%sc%s', oldrange, newrange))
+      for i in range(oldcount)
+        call add(lines, printf('< %s', old[oldstart + i]))
+      endfor
+      call add(lines, '---')
+      for i in range(newcount)
+        call add(lines, printf('> %s', new[newstart + i]))
       endfor
     endif
   endfor
