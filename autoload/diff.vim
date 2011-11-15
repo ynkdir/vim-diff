@@ -1,21 +1,24 @@
-" diff.vim
-" usage:
-"   :set runtimepath+=/path/to/vim-diff
-"   :set diffexpr=diff#diffexpr()
-
 let s:save_cpo = &cpo
 set cpo&vim
 
 function diff#diffexpr()
-  let old = readfile(v:fname_in)
-  let new = readfile(v:fname_new)
+  let old = readfile(v:fname_in, 'b')
+  let new = readfile(v:fname_new, 'b')
   let diff = s:DiffOnp.new(old, new)
-  call writefile(diff.format_ed(), v:fname_out)
+  let out = diff.format_ed()
+  if !empty(out)
+    call add(out, '')
+  endif
+  call writefile(out, v:fname_out, 'b')
 endfunction
 
 function diff#ed(old, new)
   let diff = s:DiffOnp.new(a:old, a:new)
-  return join(diff.format_ed(), "\n")
+  let out = diff.format_ed()
+  if !empty(out)
+    call add(out, '')
+  endif
+  return join(out, "\n")
 endfunction
 
 " simple version
