@@ -4,21 +4,17 @@ set cpo&vim
 function diff#diffexpr()
   let old = readfile(v:fname_in, 'b')
   let new = readfile(v:fname_new, 'b')
-  let diff = s:DiffOnp.new(old, new)
-  let out = diff.format_ed()
+  let out = diff#normal(old, new)
   if !empty(out)
     call add(out, '')
   endif
   call writefile(out, v:fname_out, 'b')
 endfunction
 
-function diff#ed(old, new)
+function diff#normal(old, new)
   let diff = s:DiffOnp.new(a:old, a:new)
-  let out = diff.format_ed()
-  if !empty(out)
-    call add(out, '')
-  endif
-  return join(out, "\n")
+  let out = diff.format_normal()
+  return out
 endfunction
 
 " simple version
@@ -98,7 +94,7 @@ function! s:Diff.find_same(oldstart, oldend, newstart, newend)
   return res
 endfunction
 
-function s:Diff.format_ed()
+function s:Diff.format_normal()
   let base = 1
   let lines = []
   for diff in self.diffs
@@ -305,7 +301,7 @@ function s:DiffOnp.find_diff()
   return diffs
 endfunction
 
-function s:DiffOnp.format_ed()
+function s:DiffOnp.format_normal()
   let base = 1
   let lines = []
   let old = self.A
