@@ -182,16 +182,18 @@ function s:DiffOnp.new(...)
 endfunction
 
 function s:DiffOnp.__init__(A, B)
-  let self.A = a:A
-  let self.B = a:B
-  let self.M = len(self.A)
-  let self.N = len(self.B)
-  if self.M <= self.N
-    let self.reverse = 0
-  else
-    let [self.A, self.B] = [self.B, self.A]
-    let [self.M, self.N] = [self.N, self.M]
+  if len(a:A) > len(a:B)
+    let self.A = a:B
+    let self.B = a:A
+    let self.M = len(a:B)
+    let self.N = len(a:A)
     let self.reverse = 1
+  else
+    let self.A = a:A
+    let self.B = a:B
+    let self.M = len(a:A)
+    let self.N = len(a:B)
+    let self.reverse = 0
   endif
   let self.fp = {}
   let self.path = {}
@@ -304,15 +306,18 @@ endfunction
 function s:DiffOnp.format_normal()
   let base = 1
   let lines = []
-  let old = self.A
-  let new = self.B
   if self.reverse
-    let [old, new] = [new, old]
+    let old = self.B
+    let new = self.A
+  else
+    let old = self.A
+    let new = self.B
   endif
   for diff in self.diffs
-    let [oldstart, oldcount, newstart, newcount] = diff
     if self.reverse
-      let [oldstart, oldcount, newstart, newcount] = [newstart, newcount, oldstart, oldcount]
+      let [newstart, newcount, oldstart, oldcount] = diff
+    else
+      let [oldstart, oldcount, newstart, newcount] = diff
     endif
     if oldcount == 0
       let oldrange = printf('%d', oldstart)
