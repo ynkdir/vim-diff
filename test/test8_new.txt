@@ -1,0 +1,7 @@
+no difference and no endofline
+b
+c
+d
+e
+f
+g

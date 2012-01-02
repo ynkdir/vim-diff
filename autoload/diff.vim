@@ -2,13 +2,7 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function diff#diffexpr()
-  let old = readfile(v:fname_in, 'b')
-  let new = readfile(v:fname_new, 'b')
-  let out = diff#normal(old, new)
-  if !empty(out)
-    call add(out, '')
-  endif
-  call writefile(out, v:fname_out, 'b')
+  call diff#fnormal(v:fname_in, v:fname_new, v:fname_out)
 endfunction
 
 function diff#normal(old, new)
@@ -16,6 +10,39 @@ function diff#normal(old, new)
   let out = diff.format_normal()
   return out
 endfunction
+
+function diff#bnormal(old, new)
+  let options = {}
+  let A = copy(a:old)
+  if !empty(A) && A[-1] == ''
+    let options.Aeol = 1
+    unlet A[-1]
+  else
+    let options.Aeol = 0
+  endif
+  let B = copy(a:new)
+  if !empty(B) && B[-1] == ''
+    let options.Beol = 1
+    unlet B[-1]
+  else
+    let options.Beol = 0
+  endif
+  let diff = s:DiffOnp.new(A, B, options)
+  let out = diff.format_normal()
+  return out
+endfunction
+
+function diff#fnormal(oldfile, newfile, outfile)
+  let old = readfile(a:oldfile, 'b')
+  let new = readfile(a:newfile, 'b')
+  let out = diff#bnormal(old, new)
+  if !empty(out)
+    call add(out, '')
+  endif
+  call writefile(out, a:outfile, 'b')
+endfunction
+
+let s:NOEOL = '\ No newline at end of file'
 
 "---------------------------------------------------------------------
 " G.Myers, W.Miller, An O(NP) Sequence Comparison Algorith
@@ -61,23 +88,45 @@ function s:DiffOnp.new(...)
   return obj
 endfunction
 
-function s:DiffOnp.__init__(A, B)
+function s:DiffOnp.__init__(A, B, ...)
+  let options_default = {'Aeol': 1, 'Beol': 1}
+  let options = extend(options_default, get(a:000, 0, {}))
   if len(a:A) > len(a:B)
     let self.A = a:B
     let self.B = a:A
     let self.M = len(a:B)
     let self.N = len(a:A)
+    let self.Aeol = options.Beol
+    let self.Beol = options.Aeol
     let self.reverse = 1
   else
     let self.A = a:A
     let self.B = a:B
     let self.M = len(a:A)
     let self.N = len(a:B)
+    let self.Aeol = options.Aeol
+    let self.Beol = options.Beol
     let self.reverse = 0
   endif
+  " Add \n to detect noeol.
+  let A = map(copy(self.A), 'v:val . "\n"')
+  if !empty(A) && !self.Aeol
+    let A[-1] = self.A[-1]
+  endif
+  let B = map(copy(self.B), 'v:val . "\n"')
+  if !empty(B) && !self.Beol
+    let B[-1] = self.B[-1]
+  endif
+  let self.Acmp = self.makecmpbuf(A)
+  let self.Bcmp = self.makecmpbuf(B)
   let self.fp = {}
   let self.path = {}
   let self.diffs = self.find_diff()
+endfunction
+
+" TODO: ignorecase, whitespace, etc...
+function s:DiffOnp.makecmpbuf(lines)
+  return a:lines
 endfunction
 
 function s:DiffOnp.onp()
@@ -127,7 +176,7 @@ function s:DiffOnp.snake(k)
   let y = max([i, j])
 
   let x = y - k
-  while x < self.M && y < self.N && self.A[x] ==# self.B[y]
+  while x < self.M && y < self.N && self.Acmp[x] ==# self.Bcmp[y]
     let x += 1
     let y += 1
     call add(self.path[k], 0)
@@ -189,9 +238,13 @@ function s:DiffOnp.format_normal()
   if self.reverse
     let old = self.B
     let new = self.A
+    let oldeol = self.Beol
+    let neweol = self.Aeol
   else
     let old = self.A
     let new = self.B
+    let oldeol = self.Aeol
+    let neweol = self.Beol
   endif
   for diff in self.diffs
     if self.reverse
@@ -218,20 +271,32 @@ function s:DiffOnp.format_normal()
       for i in range(newcount)
         call add(lines, printf('> %s', new[newstart + i]))
       endfor
+      if !neweol && newstart + newcount == len(new)
+        call add(lines, s:NOEOL)
+      endif
     elseif newcount == 0
       call add(lines, printf('%sd%s', oldrange, newrange))
       for i in range(oldcount)
         call add(lines, printf('< %s', old[oldstart + i]))
       endfor
+      if !oldeol && oldstart + oldcount == len(old)
+        call add(lines, s:NOEOL)
+      endif
     else
       call add(lines, printf('%sc%s', oldrange, newrange))
       for i in range(oldcount)
         call add(lines, printf('< %s', old[oldstart + i]))
       endfor
+      if !oldeol && oldstart + oldcount == len(old)
+        call add(lines, s:NOEOL)
+      endif
       call add(lines, '---')
       for i in range(newcount)
         call add(lines, printf('> %s', new[newstart + i]))
       endfor
+      if !neweol && newstart + newcount == len(new)
+        call add(lines, s:NOEOL)
+      endif
     endif
   endfor
   return lines
