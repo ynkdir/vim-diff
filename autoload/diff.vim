@@ -207,8 +207,13 @@ function s:Diff.__init__(A, B, ...)
   let self.path = s:DiffOnp.diff(Acmp, Bcmp)
 endfunction
 
-" TODO: ignorecase, whitespace, etc...
 function s:Diff.makecmpbuf(lines)
+  if &diffopt =~ 'iwhite'
+    call map(a:lines, 'substitute(v:val, ''[ \t\r\n]\+\|[ \t\r\n]*$'', " ", "g")')
+  endif
+  if &diffopt =~ 'icase'
+    call map(a:lines, 'tolower(v:val)')
+  endif
   return a:lines
 endfunction
 
