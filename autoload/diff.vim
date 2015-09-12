@@ -6,9 +6,8 @@ function diff#diffexpr()
 endfunction
 
 function diff#normal(old, new)
-  let diff = s:Diff.new(a:old, a:new)
-  let out = diff.format_normal()
-  return out
+  let path = s:wuonp.WuOnpDiff.diff(a:old, a:new)
+  return s:normal.Normal.format(path, a:old, 0, a:new, 0)
 endfunction
 
 function diff#bnormal(old, new)

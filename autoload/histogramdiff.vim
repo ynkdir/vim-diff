@@ -6,9 +6,8 @@ function histogramdiff#diffexpr()
 endfunction
 
 function histogramdiff#normal(old, new)
-  let diff = s:Diff.new(a:old, a:new)
-  let out = diff.format_normal()
-  return out
+  let path = s:histogram.HistogramDiff.diff(a:old, a:new)
+  return s:normal.Normal.format(path, a:old, 0, a:new, 0)
 endfunction
 
 function histogramdiff#bnormal(old, new)
