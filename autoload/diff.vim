@@ -1,6 +1,7 @@
 let s:normal = diff#normal#import()
 let s:wuonp = diff#wuonp#import()
 let s:histogram = diff#histogram#import()
+let s:patience = diff#patience#import()
 
 function diff#diffexpr()
   let options = {}
@@ -13,6 +14,14 @@ endfunction
 function diff#histogramdiffexpr()
   let options = {}
   let options.algorithm = 'histogram'
+  let options.iwhite = (&diffopt =~ 'iwhite')
+  let options.icase = (&diffopt =~ 'icase')
+  call diff#fnormal(v:fname_in, v:fname_new, v:fname_out, options)
+endfunction
+
+function diff#patiencediffexpr()
+  let options = {}
+  let options.algorithm = 'patience'
   let options.iwhite = (&diffopt =~ 'iwhite')
   let options.icase = (&diffopt =~ 'icase')
   call diff#fnormal(v:fname_in, v:fname_new, v:fname_out, options)
@@ -34,6 +43,8 @@ function diff#bnormal(old, new, ...)
   let Bcmp = s:makecmpbuf(copy(B), Beol, iwhite, icase)
   if algorithm == 'histogram'
     let path = s:histogram.HistogramDiff.diff(Acmp, Bcmp)
+  elseif algorithm == 'patience'
+    let path = s:patience.PatienceDiff.diff(Acmp, Bcmp)
   elseif algorithm == 'wuonp'
     let path = s:wuonp.WuOnpDiff.diff(Acmp, Bcmp)
   else
