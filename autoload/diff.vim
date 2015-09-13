@@ -67,7 +67,7 @@ endfunction
 
 function s:fixeol(lines)
   let eol = 0
-  if !empty(a:lines) && a:lines[-1] == ''
+  if !empty(a:lines) && a:lines[-1] ==# ''
     let eol = 1
     unlet a:lines[-1]
   endif
@@ -152,7 +152,7 @@ function s:change_compact_sub(diff, lines)
     endif
     let start = s
     let end = e
-    while 0 < s && a:lines[s - 1] == a:lines[e - 1]
+    while 0 < s && a:lines[s - 1] ==# a:lines[e - 1]
       let a:diff[s - 1] = a:diff[e - 1]
       let a:diff[e - 1] = 0
       let e -= 1
@@ -160,7 +160,7 @@ function s:change_compact_sub(diff, lines)
         let s -= 1
       endwhile
     endwhile
-    while e < len(a:lines) && a:lines[s] == a:lines[e]
+    while e < len(a:lines) && a:lines[s] ==# a:lines[e]
       let a:diff[e] = a:diff[s]
       let a:diff[s] = 0
       let s += 1

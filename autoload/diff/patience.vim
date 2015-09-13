@@ -43,12 +43,12 @@ function s:PatienceDiff.patience_diff(al, astart, aend, bl, bstart, bend)
       let path += repeat([0], aend - astart)
       continue
     endif
-    while astart < aend && bstart < bend && a:al[astart] == a:bl[bstart]
+    while astart < aend && bstart < bend && a:al[astart] ==# a:bl[bstart]
       let path += [0]
       let astart += 1
       let bstart += 1
     endwhile
-    while astart < aend && bstart < bend && a:al[aend - 1] == a:bl[bend - 1]
+    while astart < aend && bstart < bend && a:al[aend - 1] ==# a:bl[bend - 1]
       call insert(stack, [1, aend - 1, aend, bend - 1, bend])
       let aend -= 1
       let bend -= 1

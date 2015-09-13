@@ -150,14 +150,14 @@ function s:HistogramDiff.try_lcs(index, b, al, astart, aend, bl, bstart, bend)
     let bs = a:b
     let be = a:b + 1
     let rc = len(lines)
-    while a:astart < as && a:bstart < bs && a:al[as - 1] == a:bl[bs - 1]
+    while a:astart < as && a:bstart < bs && a:al[as - 1] ==# a:bl[bs - 1]
       let as -= 1
       let bs -= 1
       if len(a:index.rm[a:al[as]]) < rc
         let rc = len(a:index.rm[a:al[as]])
       endif
     endwhile
-    while ae < a:aend && be < a:bend && a:al[ae] == a:bl[be]
+    while ae < a:aend && be < a:bend && a:al[ae] ==# a:bl[be]
       let ae += 1
       let be += 1
       if len(a:index.rm[a:al[ae - 1]]) < rc
