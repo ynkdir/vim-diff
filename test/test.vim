@@ -1,28 +1,42 @@
 
 let s:dir = expand('<sfile>:p:h')
 
-" for "\ No newline at end of file" message
-let $LC_MESSAGES = 'C'
-
-function! s:sysdiff(oldfile, newfile)
-  return split(system(printf('diff %s %s', shellescape(a:oldfile), shellescape(a:newfile))), '\n')
-endfunction
-
-function! s:test(name)
+function! s:test(name, options)
   echo a:name
-  let oldfile = printf('%s/%s_old.txt', s:dir, a:name)
-  let newfile = printf('%s/%s_new.txt', s:dir, a:name)
-  let a = diff#bnormal(readfile(oldfile, 'b'), readfile(newfile, 'b'))
-  let b = s:sysdiff(oldfile, newfile)
-  let c = diff#bnormal(readfile(newfile, 'b'), readfile(oldfile, 'b'))
-  let d = s:sysdiff(newfile, oldfile)
-  if a != b || c != d
+  let a = readfile(printf('%s/%s_a', s:dir, a:name), 'b')
+  let b = readfile(printf('%s/%s_b', s:dir, a:name), 'b')
+  let ok = readfile(printf('%s/%s_ok', s:dir, a:name))
+  let r = diff#bnormal(a, b, a:options)
+  if r != ok
     echoerr printf('%s failed', a:name)
   endif
 endfunction
 
-let i = 1
-while filereadable(printf('%s/test%d_old.txt', s:dir, i))
-  call s:test(printf('test%d', i))
-  let i += 1
-endwhile
+call s:test('test1', {})
+call s:test('test2', {})
+call s:test('test3', {})
+call s:test('test4', {})
+call s:test('test5', {})
+call s:test('test6', {})
+call s:test('test7', {})
+call s:test('test8', {})
+call s:test('test9', {})
+call s:test('test10', {})
+call s:test('test11', {})
+call s:test('test12', {})
+call s:test('test13', {})
+call s:test('test14', {})
+call s:test('test15', {})
+call s:test('test16', {})
+call s:test('test17', {})
+call s:test('test18', {})
+call s:test('test19', {})
+call s:test('test20', {})
+call s:test('test21', {})
+call s:test('test22', {})
+call s:test('test23', {})
+call s:test('test24', {})
+call s:test('test25', {'algorithm': 'patience'})
+call s:test('test26', {'algorithm': 'patience'})
+call s:test('test27', {'algorithm': 'histogram'})
+call s:test('test28', {'algorithm': 'histogram'})
