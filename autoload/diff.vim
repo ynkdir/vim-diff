@@ -50,6 +50,7 @@ function diff#bnormal(old, new, ...)
   else
     throw 'Unknown algorithm: ' . algorithm
   endif
+  let path = s:change_compact(path, Acmp, Bcmp)
   return s:normal.Normal.format(path, A, Aeol, B, Beol)
 endfunction
 
@@ -87,4 +88,91 @@ function s:makecmpbuf(lines, eol, iwhite, icase)
     call map(a:lines, 'tolower(v:val)')
   endif
   return a:lines
+endfunction
+
+" Move back and forward change groups for a consistent and pretty diff output.
+function s:change_compact(path, al, bl)
+  let [ad, bd] = s:path_to_diff(a:path)
+  let ad = s:change_compact_sub(ad, a:al)
+  let bd = s:change_compact_sub(bd, a:bl)
+  return s:diff_to_path(ad, bd)
+endfunction
+
+function s:path_to_diff(path)
+  let ad = filter(copy(a:path), 'v:val <= 0')
+  let bd = filter(copy(a:path), 'v:val >= 0')
+  return [ad, bd]
+endfunction
+
+function s:diff_to_path(ad, bd)
+  let path = []
+  let a = 0
+  let b = 0
+  while a < len(a:ad) && b < len(a:bd)
+    if a:ad[a] == 0 && a:bd[b] == 0
+      call add(path, 0)
+      let a += 1
+      let b += 1
+    elseif a:ad[a] != 0
+      call add(path, -1)
+      let a += 1
+    else
+      call add(path, 1)
+      let b += 1
+    endif
+  endwhile
+  if a < len(a:ad)
+    while a < len(a:ad)
+      call add(path, -1)
+      let a += 1
+    endwhile
+  endif
+  if b < len(a:bd)
+    while b < len(a:bd)
+      call add(path, 1)
+      let b += 1
+    endwhile
+  endif
+  return path
+endfunction
+
+function s:change_compact_sub(diff, lines)
+  let i = 0
+  while i < len(a:diff)
+    while i < len(a:diff) && a:diff[i] == 0
+      let i += 1
+    endwhile
+    let s = i
+    while i < len(a:diff) && a:diff[i] != 0
+      let i += 1
+    endwhile
+    let e = i
+    if s == e
+      break
+    endif
+    let start = s
+    let end = e
+    while 0 < s && a:lines[s - 1] == a:lines[e - 1]
+      let a:diff[s - 1] = a:diff[e - 1]
+      let a:diff[e - 1] = 0
+      let e -= 1
+      while 0 < s && a:diff[s - 1] != 0
+        let s -= 1
+      endwhile
+    endwhile
+    while e < len(a:lines) && a:lines[s] == a:lines[e]
+      let a:diff[e] = a:diff[s]
+      let a:diff[s] = 0
+      let s += 1
+      while e < len(a:diff) && a:diff[e] != 0
+        let e += 1
+      endwhile
+    endwhile
+    if start != s || end != e
+      let i = s
+    else
+      let i = e
+    endif
+  endwhile
+  return a:diff
 endfunction
