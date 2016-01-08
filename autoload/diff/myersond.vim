@@ -44,17 +44,7 @@ function s:MyersOnd.ond()
       let current = V[k]
       if D == 0
         " start
-      elseif k == -D
-        let prev = V[k + 1]
-        let current.x = prev.x
-        let current.y = prev.y + 1
-        let current.tree = {'type': '+', 'prev': prev.tree}
-      elseif k == D
-        let prev = V[k - 1]
-        let current.x = prev.x + 1
-        let current.y = prev.y
-        let current.tree = {'type': '-', 'prev': prev.tree}
-      elseif V[k - 1].x < V[k + 1].x
+      elseif k == -D || k != D && V[k - 1].x < V[k + 1].x
         let prev = V[k + 1]
         let current.x = prev.x
         let current.y = prev.y + 1
