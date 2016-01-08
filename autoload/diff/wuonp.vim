@@ -1,37 +1,7 @@
-"===============================================================================
-" http://ido.nu/kuma/2007/10/01/diff-onp-javascript-implementation/
-"
-" Copyright (c) 2007, KUMAGAI Kentaro
-"
-"    Redistribution and use in source and binary forms, with or without
-"    modification, are permitted provided that the following conditions
-"    are met:
-"
-" 1. Redistributions of source code must retain the above copyright
-"    notice, this list of conditions and the following disclaimer.
-" 2. Redistributions in binary form must reproduce the above copyright
-"    notice, this list of conditions and the following disclaimer in the
-"    documentation and/or other materials provided with the
-"    distribution.
-" 3. Neither the name of this project nor the names of its contributors
-"    may be used to endorse or promote products derived from this
-"    software without specific prior written permission.
-"
-" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-" OF THIS SO
-"===============================================================================
-
 " Sun Wu, Udi Manber, Gene Myers and Webb Miller. 1989.
 " "An O(NP) Sequence Comparison Algorithm"
+" Nice description (ja).
+" http://constellation.hatenablog.com/entry/20091021/1256112978
 
 function diff#wuonp#import()
   return s:
@@ -55,79 +25,95 @@ function s:WuOnpDiff.new(...)
 endfunction
 
 function s:WuOnpDiff.__init__(A, B)
-  if len(a:A) > len(a:B)
-    let self.A = a:B
-    let self.B = a:A
-    let self.M = len(a:B)
-    let self.N = len(a:A)
-    let self.path = map(self.onp(), '-v:val')
-  else
+  if len(a:A) >= len(a:B)
     let self.A = a:A
     let self.B = a:B
     let self.M = len(a:A)
     let self.N = len(a:B)
     let self.path = self.onp()
+  else
+    let self.A = a:B
+    let self.B = a:A
+    let self.M = len(a:B)
+    let self.N = len(a:A)
+    let self.path = map(self.onp(), '-v:val')
   endif
 endfunction
 
 function s:WuOnpDiff.onp()
-  let self.fp = {}
-  let self.paths = {}
-  let delta = self.N - self.M
-  let p = 0
-  while 1
-    let k = -p
-    while k < delta
-      let self.fp[k] = self.snake(k)
-      let k += 1
-    endwhile
-    let k = delta + p
-    while k > delta
-      let self.fp[k] = self.snake(k)
-      let k -= 1
-    endwhile
-    let k = delta
-    let self.fp[k] = self.snake(k)
-    if self.fp[delta] == self.N
-      break
-    endif
+  let A = self.A
+  let B = self.B
+  let M = len(A)
+  let N = len(B)
+  let D = M - N
+
+  " NOTE: x or y can be omitted since k = x - y.
+  let fp = []
+  for i in range(N + 1 + M)
+    call add(fp, {'x': -1, 'y': -1, 'tree': {}})
+  endfor
+
+  let p = -1
+  while fp[D].y != N
     let p += 1
+    for k in range(-p, D - 1)
+      call self.snake(l:)
+    endfor
+    for k in range(D + p, D + 1, -1)
+      call self.snake(l:)
+    endfor
+    let k = D
+    call self.snake(l:)
   endwhile
-  let path = self.paths[delta]
-  " remove garbage
-  if !empty(path)
-    unlet path[0]
+
+  return self.tree_to_path(fp[D].tree)
+endfunction
+
+function s:WuOnpDiff.snake(l)
+  call extend(l:, a:l, 'keep')
+  if k < -N || M < k
+    return
   endif
+  let current = fp[k]
+  if p == 0 && k == 0
+    " start
+    let current.x = 0
+    let current.y = 0
+  elseif k == -N || k != M && fp[k - 1].y < fp[k + 1].y
+    let prev = fp[k + 1]
+    let current.x = prev.x
+    let current.y = prev.y + 1
+    let current.tree = {'type': '+', 'prev': prev.tree}
+  else
+    let prev = fp[k - 1]
+    let current.x = prev.x + 1
+    let current.y = prev.y
+    let current.tree = {'type': '-', 'prev': prev.tree}
+  endif
+  let x = current.x
+  let y = current.y
+  while x < M && y < N && A[x] ==# B[y]
+    let current.tree = {'type': '|', 'prev': current.tree}
+    let x += 1
+    let y += 1
+  endwhile
+  let current.x = x
+  let current.y = y
+endfunction
+
+function s:WuOnpDiff.tree_to_path(tree)
+  let path = []
+  let node = a:tree
+  while !empty(node)
+    if node.type == '+'
+      call insert(path, 1)
+    elseif node.type == '-'
+      call insert(path, -1)
+    else
+      call insert(path, 0)
+    endif
+    let node = node.prev
+  endwhile
   return path
 endfunction
 
-function s:WuOnpDiff.snake(k)
-  let k = a:k
-
-  let i = get(self.fp, k - 1, -1) + 1
-  let j = get(self.fp, k + 1, -1)
-  if i > j
-    if has_key(self.paths, k - 1)
-      let self.paths[k] = copy(self.paths[k - 1])
-    endif
-    let v = 1
-  else
-    if has_key(self.paths, k + 1)
-      let self.paths[k] = copy(self.paths[k + 1])
-    endif
-    let v = -1
-  endif
-  if !has_key(self.paths, k)
-    let self.paths[k] = []
-  endif
-  call add(self.paths[k], v)
-  let y = max([i, j])
-
-  let x = y - k
-  while x < self.M && y < self.N && self.A[x] ==# self.B[y]
-    let x += 1
-    let y += 1
-    call add(self.paths[k], 0)
-  endwhile
-  return y
-endfunction
