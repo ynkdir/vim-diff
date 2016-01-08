@@ -1,9 +1,22 @@
 let s:normal = diff#normal#import()
+let s:myersond = diff#myersond#import()
 let s:wuonp = diff#wuonp#import()
 let s:histogram = diff#histogram#import()
 let s:patience = diff#patience#import()
 
 function diff#diffexpr()
+  return diff#wuonpdiffexpr()
+endfunction
+
+function diff#myersonddiffexpr()
+  let options = {}
+  let options.algorithm = 'myersond'
+  let options.iwhite = (&diffopt =~ 'iwhite')
+  let options.icase = (&diffopt =~ 'icase')
+  call diff#fnormal(v:fname_in, v:fname_new, v:fname_out, options)
+endfunction
+
+function diff#wuonpdiffexpr()
   let options = {}
   let options.algorithm = 'wuonp'
   let options.iwhite = (&diffopt =~ 'iwhite')
@@ -47,6 +60,8 @@ function diff#bnormal(old, new, ...)
     let path = s:patience.PatienceDiff.diff(Acmp, Bcmp)
   elseif algorithm == 'wuonp'
     let path = s:wuonp.WuOnpDiff.diff(Acmp, Bcmp)
+  elseif algorithm == 'myersond'
+    let path = s:myersond.MyersOnd.diff(Acmp, Bcmp)
   else
     throw 'Unknown algorithm: ' . algorithm
   endif
